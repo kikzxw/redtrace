@@ -1,15 +1,15 @@
-export const MAX_BRIX_RESPONSE_SIZE = 8 * 1024 * 1024;
+export const MAX_SEARCH_RESPONSE_SIZE = 8 * 1024 * 1024;
 
-export class BrixResponseError extends Error {
+export class SearchResponseError extends Error {
   constructor(message) {
     super(message);
-    this.name = "BrixResponseError";
+    this.name = "SearchResponseError";
   }
 }
 
-export async function parseBrixResponse(response) {
+export async function parseSearchResponse(response) {
   if (response.status === 204 || response.status === 205) {
-    throw new BrixResponseError("Le service de recherche a renvoyé une réponse vide.");
+    throw new SearchResponseError("Le service de recherche a renvoyé une réponse vide.");
   }
 
   const reader = response.body?.getReader();
@@ -22,9 +22,9 @@ export async function parseBrixResponse(response) {
         const { done, value } = await reader.read();
         if (done) break;
         size += value.byteLength;
-        if (size > MAX_BRIX_RESPONSE_SIZE) {
+        if (size > MAX_SEARCH_RESPONSE_SIZE) {
           await reader.cancel();
-          throw new BrixResponseError("La réponse du service de recherche dépasse la taille autorisée.");
+          throw new SearchResponseError("La réponse du service de recherche dépasse la taille autorisée.");
         }
         chunks.push(value);
       }
@@ -40,25 +40,25 @@ export async function parseBrixResponse(response) {
     text = new TextDecoder().decode(bytes);
   } else {
     text = await response.text();
-    if (new TextEncoder().encode(text).byteLength > MAX_BRIX_RESPONSE_SIZE) {
-      throw new BrixResponseError("La réponse du service de recherche dépasse la taille autorisée.");
+    if (new TextEncoder().encode(text).byteLength > MAX_SEARCH_RESPONSE_SIZE) {
+      throw new SearchResponseError("La réponse du service de recherche dépasse la taille autorisée.");
     }
   }
 
   const normalizedText = text.replace(/^\uFEFF/, "").trim();
   if (!normalizedText) {
-    throw new BrixResponseError("Le service de recherche a renvoyé une réponse vide.");
+    throw new SearchResponseError("Le service de recherche a renvoyé une réponse vide.");
   }
 
   let payload;
   try {
     payload = JSON.parse(normalizedText);
   } catch {
-    throw new BrixResponseError("Le service de recherche a renvoyé une réponse JSON illisible.");
+    throw new SearchResponseError("Le service de recherche a renvoyé une réponse JSON illisible.");
   }
 
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    throw new BrixResponseError("Le service de recherche a renvoyé une réponse JSON inattendue.");
+    throw new SearchResponseError("Le service de recherche a renvoyé une réponse JSON inattendue.");
   }
   return payload;
 }

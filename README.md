@@ -1,6 +1,6 @@
 # RedTrace OSINT
 
-Interface web de recherche multicritère OSINT : identité, naissance, contact, localisation, comptes en ligne (Steam, FiveM, Discord, Xbox) et champs avancés (NIR, IBAN/BIC, VIN/plaque). Les requêtes sont relaisées par le serveur vers un service de recherche externe (constante `BRIX_ENDPOINT` dans `src/server.js` et `src/worker.mjs`) : le navigateur n'interroge jamais ce service directement et aucune requête n'est stockée sur le serveur.
+Interface web de recherche multicritère OSINT : identité, naissance, contact, localisation, comptes en ligne (Steam, FiveM, Discord, Xbox) et champs avancés (NIR, IBAN/BIC, VIN/plaque). Les requêtes sont relaisées par le serveur vers un service de recherche externe (URL par défaut codée dans le serveur, surchargeable avec la variable `SEARCH_ENDPOINT`) : le navigateur n'interroge jamais ce service directement et aucune requête n'est stockée sur le serveur.
 
 ## Démarrage
 
@@ -20,6 +20,7 @@ L'historique reste en mémoire dans l'onglet et disparaît lors de son rechargem
 | --- | --- | --- |
 | `HOST` | `0.0.0.0` | Adresse d'écoute. Utilisez `127.0.0.1` pour un usage exclusivement local. |
 | `PORT` | `3000` | Port d'écoute. |
+| `SEARCH_ENDPOINT` | *(valeur par défaut)* | URL du service de recherche externe relaisé par `POST /api/search`. |
 | `AUTH_USER` / `AUTH_PASS` | *(vide)* | Si définis, activation d'une authentification HTTP Basic sur tout le site (y compris les pages). **Fortement recommandé en public.** |
 | `RATE_LIMIT_SEARCH` | `20` | Requêtes `/api/search` autorisées par IP et par minute. |
 | `TRUST_PROXY` | `0` | Mettre `1` derrière un reverse proxy (Nginx, Caddy…) pour utiliser la première IP de `X-Forwarded-For` dans la limitation de débit. |

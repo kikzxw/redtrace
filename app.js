@@ -1,10 +1,11 @@
-const views = ["overview", "brix", "history"];
+const views = ["overview", "search", "history"];
 const viewTitles = {
-  overview: "Vue d'ensemble",
-  brix: "Recherche",
-  history: "Activité récente",
+  overview: "Tableau de bord",
+  search: "Recherche",
+  history: "Historique",
 };
 const activity = [];
+let activeSearch = null;
 
 function showView(name) {
   for (const view of views) {
@@ -35,7 +36,7 @@ function formatValue(value) {
   return String(value);
 }
 
-const brixFieldGroups = [
+const searchFieldGroups = [
   {
     title: "Identité",
     fields: [
@@ -91,19 +92,11 @@ const brixFieldGroups = [
       ["vin_plaque", "VIN / Plaque", "text", {}, "Ex. VF1AAAAA… ou AB-123-CD"],
     ],
   },
-  {
-    title: "Pagination & options",
-    fields: [
-      ["page", "Page", "number", { min: 1 }],
-      ["per_page", "Résultats par page", "number", { min: 1, max: 100 }],
-      ["flexible", "Recherche approximative (flexible)", "checkbox"],
-    ],
-  },
 ];
 
-const brixFieldOrder = brixFieldGroups.flatMap((group) => group.fields.map(([key]) => key));
+const searchFieldOrder = searchFieldGroups.flatMap((group) => group.fields.map(([key]) => key));
 
-const brixLabels = {
+const searchLabels = {
   nom_famille: "Nom de famille",
   prenom: "Prénom",
   nom_naissance: "Nom de naissance",
@@ -173,21 +166,21 @@ const brixLabels = {
   _sources: "Sources",
 };
 
-function brixLabel(key) {
-  return brixLabels[key] || key;
+function searchLabel(key) {
+  return searchLabels[key] || key;
 }
 
-function renderBrixForm() {
-  const container = document.querySelector("#brix-fields");
+function renderSearchForm() {
+  const container = document.querySelector("#search-fields");
   container.replaceChildren();
 
-  for (const [index, group] of brixFieldGroups.entries()) {
+  for (const [index, group] of searchFieldGroups.entries()) {
     const section = element("section", "field-group");
     const heading = element("h3", "field-group-heading");
     const head = element("button", "field-group-head");
     head.type = "button";
     head.setAttribute("aria-expanded", "false");
-    head.setAttribute("aria-controls", `brix-group-content-${index}`);
+    head.setAttribute("aria-controls", `search-group-content-${index}`);
     head.append(
       element("span", "field-group-title", group.title),
       element("span", "field-group-count", `${group.fields.length} CHAMP${group.fields.length === 1 ? "" : "S"}`),
@@ -196,14 +189,14 @@ function renderBrixForm() {
     section.append(heading);
 
     const content = element("div", "field-group-content");
-    content.id = `brix-group-content-${index}`;
+    content.id = `search-group-content-${index}`;
     content.setAttribute("aria-hidden", "true");
     content.inert = true;
     const grid = element("div", "field-grid");
     for (const [key, label, type = "text", attrs = {}, placeholder] of group.fields) {
       if (type === "checkbox") {
         const check = element("label", "field-check");
-        check.dataset.brixField = "";
+        check.dataset.searchField = "";
         check.dataset.search = `${label} ${key}`.toLocaleLowerCase("fr");
         const input = document.createElement("input");
         input.type = "checkbox";
@@ -213,7 +206,7 @@ function renderBrixForm() {
         continue;
       }
       const field = element("label", "field");
-      field.dataset.brixField = "";
+      field.dataset.searchField = "";
       field.dataset.search = `${label} ${key}`.toLocaleLowerCase("fr");
       field.title = `Champ : ${key}`;
       const headLabel = element("span");
@@ -250,11 +243,11 @@ function renderBrixForm() {
   container.addEventListener("click", (event) => {
     const button = event.target.closest(".field-group-head");
     if (!button || !container.contains(button)) return;
-    setBrixGroupOpen(button.closest(".field-group"), button.getAttribute("aria-expanded") !== "true");
+    setSearchGroupOpen(button.closest(".field-group"), button.getAttribute("aria-expanded") !== "true");
   });
 }
 
-function setBrixGroupOpen(group, open) {
+function setSearchGroupOpen(group, open) {
   const button = group.querySelector(".field-group-head");
   const content = group.querySelector(".field-group-content");
   const isOpen = button.getAttribute("aria-expanded") === "true";
@@ -263,7 +256,7 @@ function setBrixGroupOpen(group, open) {
   group.classList.toggle("is-open", open);
   if (open) {
     for (const sibling of group.parentElement.querySelectorAll(".field-group")) {
-      if (sibling !== group) setBrixGroupOpen(sibling, false);
+      if (sibling !== group) setSearchGroupOpen(sibling, false);
     }
     button.setAttribute("aria-expanded", "true");
     content.setAttribute("aria-hidden", "false");
@@ -288,10 +281,10 @@ function setBrixGroupOpen(group, open) {
   });
 }
 
-function collectBrixPayload() {
+function collectSearchPayload() {
   const payload = {};
   let criteria = 0;
-  for (const input of document.querySelectorAll("#brix-fields input[name], #brix-fields select[name]")) {
+  for (const input of document.querySelectorAll("#search-form input[name], #search-form select[name]")) {
     if (input.type === "checkbox") {
       if (input.checked) payload[input.name] = true;
       continue;
@@ -320,14 +313,14 @@ function birthDateError(payload) {
   return "";
 }
 
-function updateBrixControls() {
-  const filter = document.querySelector("#brix-field-filter").value.trim().toLocaleLowerCase("fr");
+function updateSearchControls() {
+  const filter = document.querySelector("#search-field-filter").value.trim().toLocaleLowerCase("fr");
   let criteria = 0;
   const visibleGroups = [];
 
   for (const group of document.querySelectorAll(".field-group")) {
     let visibleFields = 0;
-    for (const field of group.querySelectorAll("[data-brix-field]")) {
+    for (const field of group.querySelectorAll("[data-search-field]")) {
       const visible = !filter || field.dataset.search.includes(filter);
       field.classList.toggle("hidden", !visible);
       if (visible) visibleFields += 1;
@@ -343,30 +336,30 @@ function updateBrixControls() {
   if (filter && visibleGroups.length) {
     const openGroup = visibleGroups.find((group) => group.querySelector(".field-group-head").getAttribute("aria-expanded") === "true")
       || visibleGroups[0];
-    setBrixGroupOpen(openGroup, true);
+    setSearchGroupOpen(openGroup, true);
     for (const group of visibleGroups) {
-      if (group !== openGroup) setBrixGroupOpen(group, false);
+      if (group !== openGroup) setSearchGroupOpen(group, false);
     }
   }
 
-  const count = document.querySelector("#brix-criteria-count");
+  const count = document.querySelector("#search-criteria-count");
   count.textContent = `${criteria} critère${criteria === 1 ? "" : "s"} renseigné${criteria === 1 ? "" : "s"}`;
 }
 
-function brixQueryTitle(query) {
+function searchQueryTitle(query) {
   const parts = Object.entries(query || {})
     .filter(([key]) => !["page", "per_page", "flexible"].includes(key))
     .slice(0, 3)
-    .map(([key, value]) => `${brixLabel(key)} : ${value}`);
+    .map(([key, value]) => `${searchLabel(key)} : ${value}`);
   return parts.length ? parts.join(" · ") : "Recherche";
 }
 
-function sortBrixEntries(record) {
+function sortSearchEntries(record) {
   const displayPriority = [
     "nom_affichage", "prenom", "nom_famille", "nom_utilisateur", "email",
     "telephone", "mobile", "adresse", "ville", "pays",
   ];
-  const order = new Map([...new Set([...displayPriority, ...brixFieldOrder])].map((key, index) => [key, index]));
+  const order = new Map([...new Set([...displayPriority, ...searchFieldOrder])].map((key, index) => [key, index]));
   const rank = (key) => order.get(key) ?? Number.MAX_SAFE_INTEGER;
   return Object.entries(record).sort(([keyA], [keyB]) => rank(keyA) - rank(keyB));
 }
@@ -379,13 +372,14 @@ function hasDisplayValue(value) {
     && !(typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0);
 }
 
-function brixResultCard(record, index) {
-  const fields = sortBrixEntries(record || {}).filter(([key, value]) =>
-    brixFieldOrder.includes(key)
+function searchResultCard(record, index) {
+  const fields = sortSearchEntries(record || {}).filter(([key, value]) =>
+    searchFieldOrder.includes(key)
     && !["page", "per_page", "flexible"].includes(key)
     && hasDisplayValue(value));
-  const card = element("article", "brix-result-card");
-  const heading = element("div", "brix-result-card-heading");
+  const card = element("article", "search-result-card");
+  card.style.setProperty("--i", index);
+  const heading = element("div", "search-result-card-heading");
   const fieldValue = (key) => fields.find(([field]) => field === key)?.[1];
   const displayName = fieldValue("nom_affichage");
   const personalNameFields = ["prenom", "nom_famille"].filter((key) =>
@@ -404,8 +398,8 @@ function brixResultCard(record, index) {
           ? ["email"]
           : [];
   heading.append(
-    element("span", "brix-result-number", String(index + 1).padStart(2, "0")),
-    element("h4", "brix-result-name", title),
+    element("span", "search-result-number", String(index + 1).padStart(2, "0")),
+    element("h4", "search-result-name", title),
   );
   card.append(heading);
 
@@ -414,52 +408,58 @@ function brixResultCard(record, index) {
   const extraFields = additionalFields.slice(8);
   const renderFields = (container, entries) => {
     for (const [key, value] of entries) {
-      const row = element("div", "brix-result-field");
+      const row = element("div", "search-result-field");
       row.append(
-        element("span", "brix-result-label", brixLabel(key)),
-        element("span", "brix-result-value", formatValue(value)),
+        element("span", "search-result-label", searchLabel(key)),
+        element("span", "search-result-value", formatValue(value)),
       );
       container.append(row);
     }
   };
 
-  const fieldGrid = element("div", "brix-result-fields");
+  const fieldGrid = element("div", "search-result-fields");
   renderFields(fieldGrid, primaryFields);
   card.append(fieldGrid);
 
   if (extraFields.length) {
-    const more = element("details", "brix-result-more");
+    const more = element("details", "search-result-more");
     const summary = element("summary", "", `Afficher ${extraFields.length} autre${extraFields.length === 1 ? "" : "s"} champ${extraFields.length === 1 ? "" : "s"}`);
-    const extraGrid = element("div", "brix-result-fields brix-result-extra");
+    const extraGrid = element("div", "search-result-fields search-result-extra");
     renderFields(extraGrid, extraFields);
     more.append(summary, extraGrid);
     card.append(more);
   }
   if (!fields.length) {
-    card.append(element("p", "brix-result-empty", "Aucun champ exploitable dans ce résultat."));
+    card.append(element("p", "search-result-empty", "Aucun champ exploitable dans ce résultat."));
   }
   return card;
 }
 
-function brixPagerRow(page, pages, search) {
-  const row = element("div", "pager-row");
+function renderSearchPager(page, pages) {
+  const pager = document.querySelector("#search-pager");
+  pager.replaceChildren();
   const previous = element("button", "pager-button", `← Page ${page - 1}`);
   previous.type = "button";
   previous.disabled = page <= 1;
-  previous.addEventListener("click", () => brixSearch({ ...search, page: page - 1 }, document.querySelector("#brix-submit")));
+  previous.addEventListener("click", () => runSearch({ ...activeSearch, page: page - 1 }, document.querySelector("#search-submit")));
+  const counter = element("span", "pager-counter", `PAGE ${page} / ${pages}`);
   const next = element("button", "pager-button", `Page ${page + 1} →`);
   next.type = "button";
   next.disabled = page >= pages;
-  next.addEventListener("click", () => brixSearch({ ...search, page: page + 1 }, document.querySelector("#brix-submit")));
-  row.append(previous, next);
-  return row;
+  next.addEventListener("click", () => runSearch({ ...activeSearch, page: page + 1 }, document.querySelector("#search-submit")));
+  pager.append(previous, counter, next);
+  pager.classList.remove("hidden");
+}
+
+function hideSearchPager() {
+  document.querySelector("#search-pager").classList.add("hidden");
 }
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function brixErrorMessage(payload, statusCode) {
+function searchErrorMessage(payload, statusCode) {
   const candidates = [payload?.error, payload?.message, payload?.detail];
   for (const candidate of candidates) {
     if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
@@ -477,7 +477,7 @@ function safeResponseNumber(value, minimum) {
   return Number.isSafeInteger(number) && number >= minimum ? number : null;
 }
 
-function normalizeBrixResponse(payload, statusCode, search) {
+function normalizeSearchResponse(payload, statusCode, search) {
   if (!isPlainObject(payload)) {
     return { error: "Le service de recherche a renvoyé une réponse JSON inattendue." };
   }
@@ -488,7 +488,7 @@ function normalizeBrixResponse(payload, statusCode, search) {
     || (typeof apiStatus === "number" && apiStatus >= 400)
     || Boolean(payload.error);
   if (statusCode < 200 || statusCode >= 300 || apiFailed) {
-    return { error: brixErrorMessage(payload, statusCode) };
+    return { error: searchErrorMessage(payload, statusCode) };
   }
 
   const data = isPlainObject(payload.data) ? payload.data : {};
@@ -519,23 +519,24 @@ function normalizeBrixResponse(payload, statusCode, search) {
   };
 }
 
-function renderBrixResult(payload, statusCode = 200, search = {}) {
-  const panel = document.querySelector("#brix-result-panel");
-  const statusBadge = document.querySelector("#brix-result-status");
-  const normalized = normalizeBrixResponse(payload, statusCode, search);
+function renderSearchResult(payload, statusCode = 200, search = {}) {
+  const panel = document.querySelector("#search-result-panel");
+  const statusBadge = document.querySelector("#search-result-status");
+  const normalized = normalizeSearchResponse(payload, statusCode, search);
   const ok = !normalized.error;
   panel.classList.remove("hidden");
   statusBadge.className = `result-status ${ok ? "success" : "error"}`;
   statusBadge.textContent = ok ? "TERMINÉ" : "ERREUR";
-  document.querySelector("#brix-result-title").textContent = brixQueryTitle(normalized.meta?.query || search);
+  document.querySelector("#search-result-title").textContent = searchQueryTitle(normalized.meta?.query || search);
 
-  const summary = document.querySelector("#brix-result-summary");
-  const sections = document.querySelector("#brix-result-sections");
+  const summary = document.querySelector("#search-result-summary");
+  const sections = document.querySelector("#search-result-sections");
   summary.replaceChildren();
   sections.replaceChildren();
 
   if (!ok) {
     summary.append(element("div", "result-error", normalized.error));
+    hideSearchPager();
     panel.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
@@ -549,35 +550,36 @@ function renderBrixResult(payload, statusCode = 200, search = {}) {
     `PAGE ${page} / ${pages}`,
   ];
   for (const text of chips) summary.append(element("div", "summary-chip", text));
-  if (pages > 1) summary.append(brixPagerRow(page, pages, search));
+  if (pages > 1) renderSearchPager(page, pages);
+  else hideSearchPager();
 
-  const resultsSection = element("section", "result-section brix-results");
-  const resultsHeading = element("div", "brix-results-heading");
+  const resultsSection = element("section", "result-section search-results");
+  const resultsHeading = element("div", "search-results-heading");
   resultsHeading.append(
     element("h3", "result-section-title", "Résultats"),
-    element("span", "brix-results-count", `${results.length} AFFICHÉ${results.length === 1 ? "" : "S"}`),
+    element("span", "search-results-count", `${results.length} AFFICHÉ${results.length === 1 ? "" : "S"}`),
   );
   resultsSection.append(resultsHeading);
 
   if (!results.length) {
     resultsSection.append(element(
       "p",
-      "brix-result-empty",
+      "search-result-empty",
       invalidResults
         ? "La réponse ne contenait aucun résultat exploitable."
         : "Aucun résultat pour ces critères.",
     ));
   } else {
-    const resultList = element("div", "brix-result-list");
+    const resultList = element("div", "search-result-list");
     for (const [index, record] of results.slice(0, 50).entries()) {
-      resultList.append(brixResultCard(record, index));
+      resultList.append(searchResultCard(record, index));
     }
     resultsSection.append(resultList);
     if (invalidResults) {
       resultsSection.append(element("div", "result-note", `${invalidResults} entrée(s) ignorée(s), car leur format JSON était inattendu.`));
     }
     if (results.length > 50) {
-      resultsSection.append(element("div", "result-note", `${results.length - 50} résultat(s) supplémentaires non affichés — réduisez « Résultats par page ».`));
+      resultsSection.append(element("div", "result-note", `${results.length - 50} résultat(s) supplémentaires non affichés — utilisez la pagination à côté du bouton de recherche.`));
     }
   }
   sections.append(resultsSection);
@@ -599,19 +601,23 @@ async function readJsonResponse(response, serviceName) {
   }
 }
 
-async function brixSearch(payload, button) {
+async function runSearch(payload, button) {
+  const criteriaPayload = { ...payload };
+  delete criteriaPayload.page;
+  activeSearch = criteriaPayload;
+  hideSearchPager();
   button.disabled = true;
   const buttonLabel = button.querySelector(".button-label");
   const initialText = buttonLabel?.textContent;
   if (buttonLabel) buttonLabel.textContent = "Recherche en cours…";
-  document.querySelector("#brix-form-error").classList.add("hidden");
-  const panel = document.querySelector("#brix-result-panel");
+  document.querySelector("#search-form-error").classList.add("hidden");
+  const panel = document.querySelector("#search-result-panel");
   panel.classList.remove("hidden");
-  document.querySelector("#brix-result-title").textContent = brixQueryTitle(payload);
-  document.querySelector("#brix-result-status").className = "result-status";
-  document.querySelector("#brix-result-status").textContent = "EN COURS";
-  document.querySelector("#brix-result-summary").replaceChildren(element("div", "result-note", "Recherche en cours…"));
-  document.querySelector("#brix-result-sections").replaceChildren();
+  document.querySelector("#search-result-title").textContent = searchQueryTitle(payload);
+  document.querySelector("#search-result-status").className = "result-status";
+  document.querySelector("#search-result-status").textContent = "EN COURS";
+  document.querySelector("#search-result-summary").replaceChildren(element("div", "result-note", "Recherche en cours…"));
+  document.querySelector("#search-result-sections").replaceChildren();
 
   let statusCode = 502;
   let data = {};
@@ -633,14 +639,14 @@ async function brixSearch(payload, button) {
 
   const criteria = Object.keys(payload).filter((key) => !["page", "per_page", "flexible"].includes(key)).length;
   activity.push({
-    target: brixQueryTitle(payload),
+    target: searchQueryTitle(payload),
     timestamp: Date.now(),
     time: new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date()),
     ok: statusCode >= 200 && statusCode < 300 && !data?.error,
-    detail: `${criteria} CRITÈRE${criteria === 1 ? "" : "S"} · BRIX`,
+    detail: `${criteria} CRITÈRE${criteria === 1 ? "" : "S"} · RECHERCHE`,
   });
   renderActivity();
-  renderBrixResult(data, statusCode, payload);
+  renderSearchResult(data, statusCode, payload);
 }
 
 function renderActivityList(container, emptyMessage) {
@@ -650,7 +656,7 @@ function renderActivityList(container, emptyMessage) {
     empty.append(
       element("span", "empty-symbol", "◷"),
       element("strong", "", emptyMessage),
-      element("p", "", "Lancez une analyse pour voir son activité ici."),
+      element("p", "", "Lancez une recherche pour voir son activité ici."),
     );
     container.append(empty);
     return;
@@ -662,7 +668,7 @@ function renderActivityList(container, emptyMessage) {
     const main = element("div", "activity-main");
     main.append(
       element("div", "activity-title", item.target),
-      element("div", "activity-meta", `${item.time} · ${item.detail || "DNS + TLS"}`),
+      element("div", "activity-meta", `${item.time} · ${item.detail || "Recherche multicritère"}`),
     );
     row.append(icon, main, element("span", `activity-badge ${item.ok ? "" : "error"}`, item.ok ? "TERMINÉ" : "ERREUR"));
     container.append(row);
@@ -699,55 +705,92 @@ function renderSearchChart() {
   const plot = { left: 48, top: 16, right: 704, bottom: 163 };
   const plotHeight = plot.bottom - plot.top;
   const plotWidth = plot.right - plot.left;
-  const slotWidth = plotWidth / buckets.length;
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.setAttribute("aria-hidden", "true");
 
-  const addSvgElement = (tag, attributes, text) => {
+  const makeSvg = (tag, attributes, parent = svg) => {
     const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
     for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, String(value));
-    if (text) node.textContent = text;
-    svg.append(node);
+    parent.append(node);
     return node;
   };
+
+  const defs = makeSvg("defs", {});
+  const gradient = makeSvg("linearGradient", { id: "search-chart-fill", x1: "0", y1: "0", x2: "0", y2: "1" }, defs);
+  makeSvg("stop", { offset: "0", "stop-color": "#ff3047", "stop-opacity": ".35" }, gradient);
+  makeSvg("stop", { offset: "1", "stop-color": "#ff3047", "stop-opacity": "0" }, gradient);
 
   const tickCount = Math.min(3, maximum);
   for (let tick = 0; tick <= tickCount; tick += 1) {
     const value = Math.round(maximum * tick / tickCount);
     const y = plot.bottom - value / maximum * plotHeight;
-    addSvgElement("line", { x1: plot.left, x2: plot.right, y1: y, y2: y, class: "search-chart-grid" });
-    addSvgElement("text", { x: plot.left - 10, y: y + 4, "text-anchor": "end", class: "search-chart-axis" }, String(value));
+    makeSvg("line", { x1: plot.left, x2: plot.right, y1: y, y2: y, class: "search-chart-grid" });
+    const label = makeSvg("text", { x: plot.left - 10, y: y + 4, "text-anchor": "end", class: "search-chart-axis" });
+    label.textContent = String(value);
+  }
+
+  const step = plotWidth / (buckets.length - 1);
+  const points = buckets.map((bucket, index) => ({
+    x: plot.left + step * index,
+    y: plot.bottom - bucket.count / maximum * plotHeight,
+    bucket,
+    index,
+  }));
+
+  const toCurve = (pts) => {
+    if (pts.length < 2) return "";
+    const tension = 0.8;
+    let path = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+    for (let i = 0; i < pts.length - 1; i += 1) {
+      const p0 = pts[i - 1] || pts[i];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[i + 2] || p2;
+      const cp1x = p1.x + ((p2.x - p0.x) / 6) * tension;
+      const cp1y = p1.y + ((p2.y - p0.y) / 6) * tension;
+      const cp2x = p2.x - ((p3.x - p1.x) / 6) * tension;
+      const cp2y = p2.y - ((p3.y - p1.y) / 6) * tension;
+      path += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)}, ${cp2x.toFixed(2)} ${cp2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+    }
+    return path;
+  };
+
+  const linePath = toCurve(points);
+  makeSvg("path", {
+    d: `${linePath} L ${plot.right} ${plot.bottom} L ${plot.left} ${plot.bottom} Z`,
+    class: "search-chart-area",
+    fill: "url(#search-chart-fill)",
+  });
+  makeSvg("path", { d: linePath, class: "search-chart-line", pathLength: "1" });
+
+  for (const point of points) {
+    const isCurrent = point.index === points.length - 1;
+    const dot = makeSvg("circle", {
+      cx: point.x,
+      cy: point.y,
+      r: isCurrent ? 4.5 : 3.2,
+      class: `search-chart-dot${isCurrent ? " current" : ""}${point.bucket.count ? " has-value" : ""}`,
+    });
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = `${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit" }).format(point.bucket.start)} · ${point.bucket.count} recherche${point.bucket.count === 1 ? "" : "s"}`;
+    dot.append(title);
   }
 
   buckets.forEach((bucket, index) => {
-    const barHeight = bucket.count ? Math.max(3, bucket.count / maximum * plotHeight) : 2;
-    const barWidth = Math.min(28, slotWidth * .5);
-    const x = plot.left + slotWidth * index + (slotWidth - barWidth) / 2;
-    const y = plot.bottom - barHeight;
-    const rect = addSvgElement("rect", {
-      x,
-      y,
-      width: barWidth,
-      height: barHeight,
-      rx: 3,
-      class: `search-chart-bar${index === buckets.length - 1 ? " current" : ""}${bucket.count ? " has-value" : ""}`,
+    if (index % 3 !== 0 && index !== buckets.length - 1) return;
+    const label = makeSvg("text", {
+      x: plot.left + step * index,
+      y: plot.bottom + 23,
+      "text-anchor": "middle",
+      class: "search-chart-axis search-chart-time",
     });
-    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-    title.textContent = `${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit" }).format(bucket.start)} · ${bucket.count} recherche${bucket.count === 1 ? "" : "s"}`;
-    rect.append(title);
-
-    if (index % 3 === 0 || index === buckets.length - 1) {
-      addSvgElement(
-        "text",
-        { x: x + barWidth / 2, y: plot.bottom + 23, "text-anchor": "middle", class: "search-chart-axis search-chart-time" },
-        new Intl.DateTimeFormat("fr-FR", { hour: "2-digit" }).format(bucket.start),
-      );
-    }
+    label.textContent = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit" }).format(bucket.start);
   });
 
   if (count === 0) {
-    addSvgElement("text", { x: width / 2, y: 93, "text-anchor": "middle", class: "search-chart-empty" }, "Lancez une recherche pour voir votre activité");
+    const empty = makeSvg("text", { x: width / 2, y: 93, "text-anchor": "middle", class: "search-chart-empty" });
+    empty.textContent = "Lancez une recherche pour voir votre activité";
   }
 
   container.replaceChildren(svg);
@@ -765,7 +808,7 @@ function renderActivity() {
   renderSearchChart();
   document.querySelector("#history-count").textContent = `${String(activity.length).padStart(2, "0")} ENTRÉE${activity.length === 1 ? "" : "S"}`;
   renderActivityList(document.querySelector("#history-list"), "Votre historique est vide");
-  renderActivityList(document.querySelector("#overview-activity"), "Aucune analyse pour le moment");
+  renderActivityList(document.querySelector("#overview-activity"), "Aucune recherche pour le moment");
 }
 
 document.querySelectorAll("[data-view]").forEach((button) => {
@@ -776,12 +819,12 @@ document.querySelectorAll("[data-go]").forEach((button) => {
 });
 
 
-document.querySelector("#brix-form").addEventListener("submit", (event) => {
+document.querySelector("#search-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  const { payload, criteria } = collectBrixPayload();
-  const errorBox = document.querySelector("#brix-form-error");
+  const { payload, criteria } = collectSearchPayload();
+  const errorBox = document.querySelector("#search-form-error");
   if (!criteria) {
-    errorBox.textContent = "Renseignez au moins un critère de recherche (hors pagination et option flexible).";
+    errorBox.textContent = "Renseignez au moins un critère de recherche (l'option flexible ne compte pas comme critère).";
     errorBox.classList.remove("hidden");
     return;
   }
@@ -792,15 +835,15 @@ document.querySelector("#brix-form").addEventListener("submit", (event) => {
     return;
   }
   errorBox.classList.add("hidden");
-  brixSearch(payload, document.querySelector("#brix-submit"));
+  runSearch(payload, document.querySelector("#search-submit"));
 });
 
-renderBrixForm();
-document.querySelector("#brix-field-filter").addEventListener("input", updateBrixControls);
-document.querySelector("#brix-fields").addEventListener("input", updateBrixControls);
-document.querySelector("#brix-fields").addEventListener("change", updateBrixControls);
-document.querySelector("#brix-form").addEventListener("reset", () => {
-  window.setTimeout(updateBrixControls, 0);
+renderSearchForm();
+document.querySelector("#search-field-filter").addEventListener("input", updateSearchControls);
+document.querySelector("#search-fields").addEventListener("input", updateSearchControls);
+document.querySelector("#search-fields").addEventListener("change", updateSearchControls);
+document.querySelector("#search-form").addEventListener("reset", () => {
+  window.setTimeout(updateSearchControls, 0);
 });
-updateBrixControls();
+updateSearchControls();
 renderActivity();

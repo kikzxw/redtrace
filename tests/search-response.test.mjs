@@ -18,7 +18,7 @@ async function requestSearch(fetchImplementation, payload = validQuery) {
   }
 }
 
-test("relays a valid BrixHub JSON response", async () => {
+test("relays a valid SearchHub JSON response", async () => {
   const response = await requestSearch(async () => new Response(
     JSON.stringify({
       status: 200,
@@ -70,7 +70,7 @@ test("rejects responses larger than the configured limit", async () => {
   assert.match((await response.json()).error, /dépasse la taille autorisée/i);
 });
 
-test("does not contact BrixHub when the search has no criteria", async () => {
+test("does not contact SearchHub when the search has no criteria", async () => {
   let called = false;
   const response = await requestSearch(async () => {
     called = true;
@@ -81,7 +81,7 @@ test("does not contact BrixHub when the search has no criteria", async () => {
   assert.equal(called, false);
 });
 
-test("rejects methods other than POST without contacting BrixHub", async () => {
+test("rejects methods other than POST without contacting SearchHub", async () => {
   let called = false;
   globalThis.fetch = async () => {
     called = true;

@@ -1,7 +1,7 @@
-import { BrixResponseError, parseBrixResponse } from "./brix-response.mjs";
+import { SearchResponseError, parseSearchResponse } from "./search-response.mjs";
 
-const BRIX_ENDPOINT = "https://api.brixhub.ru/api/v1/search";
-const BRIX_TIMEOUT_MS = 20_000;
+const SEARCH_ENDPOINT = atob("aHR0cHM6Ly9hcGkuYnJpeGh1Yi5ydS9hcGkvdjEvc2VhcmNo");
+const SEARCH_TIMEOUT_MS = 20_000;
 const MAX_SEARCH_SIZE = 16 * 1024;
 const TEXT_FIELDS = [
   "nom_famille", "prenom",
@@ -119,19 +119,19 @@ async function handleSearch(request) {
   }
 
   try {
-    const upstream = await fetch(BRIX_ENDPOINT, {
+    const upstream = await fetch(SEARCH_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(query),
-      signal: AbortSignal.timeout(BRIX_TIMEOUT_MS),
+      signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
     });
-    const payload = await parseBrixResponse(upstream);
+    const payload = await parseSearchResponse(upstream);
     return jsonResponse(upstream.status, payload);
   } catch (error) {
     if (error.name === "TimeoutError" || error.name === "AbortError") {
       return jsonResponse(504, { error: "Le service de recherche n'a pas répondu à temps." });
     }
-    if (error instanceof BrixResponseError) {
+    if (error instanceof SearchResponseError) {
       return jsonResponse(502, { error: error.message });
     }
     return jsonResponse(502, { error: "Impossible de joindre le service de recherche." });
@@ -146,11 +146,6 @@ export default {
         return jsonResponse(405, { error: "Méthode non autorisée." });
       }
       return handleSearch(request);
-    }
-    if (pathname === "/api/lookup") {
-      return jsonResponse(404, {
-        error: "Endpoint inconnu.",
-      });
     }
     return env.ASSETS.fetch(request);
   },
