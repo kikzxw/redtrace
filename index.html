@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#070708">
+    <meta name="description" content="Espace de recherche multicritère OSINT : identité, contact, localisation, comptes en ligne et champs avancés.">
+    <title>RedTrace — Recherche OSINT</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="RedTrace, accueil">
+          <span class="brand-mark">R<span>.</span></span>
+          <span class="brand-copy">redtrace<small>RECHERCHE OSINT</small></span>
+        </a>
+        <div class="workspace-label">WORKSPACE</div>
+        <nav class="side-nav" aria-label="Navigation principale">
+          <button class="nav-item active" data-view="overview" aria-label="Vue d'ensemble" aria-current="page" title="Vue d'ensemble"><span class="nav-icon" aria-hidden="true">◫</span><span>Vue d'ensemble</span></button>
+          <button class="nav-item" data-view="brix" aria-label="Recherche" title="Recherche"><span class="nav-icon" aria-hidden="true">◈</span><span>Recherche</span></button>
+          <button class="nav-item" data-view="history" aria-label="Activité récente" title="Activité récente"><span class="nav-icon" aria-hidden="true">◷</span><span>Activité récente</span></button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="local-card"><span class="status-dot"></span><div><strong>Recherche multicritère</strong><small>Requêtes relayées · rien n'est stocké</small></div></div>
+          <div class="sidebar-foot">REDTRACE <span>v1.0</span></div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="breadcrumbs"><span>WORKSPACE</span><b>/</b><strong id="breadcrumb-current">Vue d'ensemble</strong></div>
+          <div class="topbar-right"><span class="api-status"><i></i> Console active</span><span class="top-divider"></span><span class="avatar">RT</span><span class="profile-name">Analyste<span>INSTANCE PUBLIQUE</span></span></div>
+        </header>
+
+        <section class="view active" id="view-overview">
+          <div class="welcome-row">
+            <div><div class="eyebrow"><span class="live-pulse"></span> ESPACE D'INVESTIGATION</div><h1>Vue d'ensemble<span class="red-dot">.</span></h1><p class="subheading">Consultez l'activité de la session et relancez une recherche multicritère en un clic.</p></div>
+            <button class="button button-primary" data-go="brix"><span>＋</span> Nouvelle recherche</button>
+          </div>
+          <div class="overview-metrics">
+            <article class="stat-card search-total-card">
+              <div class="stat-top"><span>RECHERCHES CETTE SESSION</span><span class="stat-icon red" aria-hidden="true">⌕</span></div>
+              <div class="stat-value" id="stat-searches">00</div>
+              <div class="stat-foot">Historique éphémère, conservé dans cet onglet uniquement.</div>
+            </article>
+            <section class="panel search-chart-panel" aria-labelledby="search-chart-title">
+              <div class="panel-heading">
+                <div><span class="section-kicker">ACTIVITÉ DE LA SESSION</span><h2 id="search-chart-title">Recherches effectuées</h2></div>
+                <span class="panel-count" id="search-chart-total" aria-live="polite">0 RECHERCHE</span>
+              </div>
+              <div id="search-chart" class="search-chart" role="img" aria-label="Aucune recherche effectuée au cours des douze dernières heures."></div>
+              <p class="search-chart-caption">Nombre de recherches par heure · 12 dernières heures</p>
+            </section>
+          </div>
+          <div class="content-grid">
+            <section class="panel activity-panel">
+              <div class="panel-heading"><div><span class="section-kicker">SESSION ACTUELLE</span><h2>Activité récente</h2></div><button class="text-button" data-go="history">Tout voir <span>→</span></button></div>
+              <div id="overview-activity" class="activity-list"></div>
+            </section>
+          </div>
+          <footer class="page-footer"><span>REDTRACE OSINT</span><span>Historique éphémère, supprimé au rechargement de l'onglet</span></footer>
+        </section>
+
+        <section class="view" id="view-brix">
+          <div class="page-intro"><div class="eyebrow"><span class="live-pulse"></span> RECHERCHE MULTICRITÈRE</div><h1>Recherche<span class="red-dot">.</span></h1><p class="subheading">Renseignez un ou plusieurs critères et consultez les résultats renvoyés par le serveur.</p></div>
+          <section class="panel search-panel">
+            <div class="panel-heading"><div><span class="section-kicker">CRITÈRES DE RECHERCHE</span><h2>Affinez votre recherche</h2></div><span class="panel-count">25 CRITÈRES DISPONIBLES</span></div>
+            <div class="schema-note"><span>i</span><p>Renseignez au moins un critère : les champs vides ne sont jamais envoyés au serveur. La recherche est stricte par défaut — cochez « Recherche approximative » pour élargir les correspondances.</p></div>
+            <form id="brix-form">
+              <div class="brix-toolbar">
+                <label class="field brix-filter"><span>FILTRER LES CHAMPS</span><input id="brix-field-filter" type="search" placeholder="Ex. e-mail, ville, identifiant…" autocomplete="off"></label>
+                <div class="brix-toolbar-actions"><span class="criteria-count" id="brix-criteria-count" aria-live="polite">0 critère renseigné</span><button class="text-button brix-reset" type="reset">Tout effacer</button></div>
+              </div>
+              <div id="brix-fields" class="field-groups"></div>
+              <div id="brix-form-error" class="result-error hidden"></div>
+              <div class="form-divider"></div>
+              <div class="form-actions"><span class="form-footnote"><i class="status-dot"></i> Requêtes relayées par le serveur · aucune donnée stockée</span><button class="button button-primary" type="submit" id="brix-submit"><span class="button-label">Lancer la recherche</span><span>→</span></button></div>
+            </form>
+          </section>
+          <section class="panel result-panel hidden" id="brix-result-panel">
+            <div class="panel-heading"><div><span class="section-kicker">RÉSULTATS DE LA RECHERCHE</span><h2 id="brix-result-title">Résultats de la recherche</h2></div><span class="result-status" id="brix-result-status" role="status" aria-live="polite"></span></div>
+            <div id="brix-result-summary" class="result-summary"></div>
+            <div class="result-sections" id="brix-result-sections"></div>
+          </section>
+          <footer class="page-footer"><span>REDTRACE OSINT</span><span>Requêtes relayées par le serveur · aucune donnée stockée</span></footer>
+        </section>
+
+        <section class="view" id="view-history">
+          <div class="page-intro"><div class="eyebrow">JOURNAL ÉPHÉMÈRE</div><h1>Activité récente<span class="red-dot">.</span></h1><p class="subheading">Analyses réalisées dans l'onglet actuel uniquement.</p></div>
+          <section class="panel history-panel"><div class="panel-heading"><div><span class="section-kicker">SESSION ACTUELLE</span><h2>Analyses effectuées</h2></div><span class="panel-count" id="history-count">00 ENTRÉE</span></div><div id="history-list" class="activity-list"></div></section>
+          <footer class="page-footer"><span>REDTRACE OSINT</span><span>L'historique est supprimé au rechargement de l'onglet</span></footer>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

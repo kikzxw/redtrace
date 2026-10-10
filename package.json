@@ -1,0 +1,13 @@
+{
+  "name": "redtrace-osint",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Recherche multicritère OSINT relayée par serveur, prête pour publication publique",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
